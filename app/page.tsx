@@ -173,16 +173,16 @@ export default function Home() {
 
       <div style={{ display: 'flex', borderTop: '0.5px solid #e5e5e5', background: '#fff', padding: '8px 0 12px' }}>
   {[
-    { icon: '⌂', label: 'Browse', path: '/' },
-    { icon: '🤝', label: 'Favors', path: '/favors' },
-    { icon: '↕', label: 'Activity', path: '/activity' },
-    { icon: '◉', label: 'Profile', path: '/profile' },
-  ].map(({ icon, label, path }) => (
-    <div key={label} onClick={() => router.push(path)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-      <div style={{ fontSize: 18 }}>{icon}</div>
-      <div style={{ fontSize: 10, color: label === 'Browse' ? '#1D9E75' : '#aaa', fontWeight: label === 'Browse' ? 500 : 400 }}>{label}</div>
-    </div>
-  ))}
+  { icon: '⌂', label: 'Browse', path: '/' },
+  { icon: '📍', label: 'ISO', path: '/iso' },
+  { icon: '↕', label: 'Activity', path: '/activity' },
+  { icon: '◉', label: 'Profile', path: '/profile' },
+].map(({ icon, label, path }) => (
+  <div key={label} onClick={() => router.push(path)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+    <div style={{ fontSize: 18 }}>{icon}</div>
+    <div style={{ fontSize: 10, color: label === 'Browse' ? '#1D9E75' : '#aaa', fontWeight: label === 'Browse' ? 500 : 400 }}>{label}</div>
+  </div>
+))}
 </div>
 
     </div>

@@ -37,9 +37,16 @@ export default function AuthPage() {
         setMode('login')
       }
     } else {
-      const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+      const { error: loginError, data: loginData } = await supabase.auth.signInWithPassword({ email, password })
       if (loginError) { setError(loginError.message); setLoading(false); return }
-      router.push('/')
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarded')
+        .eq('id', loginData.user!.id)
+        .single()
+
+router.push(profile?.onboarded ? '/' : '/onboarding')
     }
     setLoading(false)
   }

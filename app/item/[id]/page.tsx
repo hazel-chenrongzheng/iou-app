@@ -14,6 +14,10 @@ type Item = {
   condition: string
   pickup_notes: string
   is_available: boolean
+  listing_type: string
+  hourly_rate: number | null
+  daily_rate: number | null
+  deposit_amount: number
   profiles: {
     username: string
     avg_rating: number
