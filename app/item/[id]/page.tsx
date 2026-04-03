@@ -31,7 +31,7 @@ export default function ItemDetail() {
   const params = useParams()
   const [item, setItem] = useState<Item | null>(null)
   const [loading, setLoading] = useState(true)
-  const [requesting, setRequesting] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [userFavors, setUserFavors] = useState(0)
@@ -64,7 +64,7 @@ export default function ItemDetail() {
       alert(`You need ${item.favor_cost} favors to borrow this. You have ${userFavors}. Lend something first to earn more!`)
       return
     }
-    setRequesting(true)
+    setSubmitting(true)
 
     const dueDate = new Date()
     dueDate.setDate(dueDate.getDate() + item.max_duration_days)
@@ -75,11 +75,12 @@ export default function ItemDetail() {
       lender_id: (await supabase.from('items').select('owner_id').eq('id', item.id).single()).data?.owner_id,
       status: 'requested',
       favor_cost: item.favor_cost,
+      payment_type: 'favors',
       due_date: dueDate.toISOString().split('T')[0],
     })
 
     if (!error) setSuccess(true)
-    setRequesting(false)
+    setSubmitting(false)
   }
 
   if (loading) return (
@@ -98,8 +99,8 @@ export default function ItemDetail() {
     <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', fontFamily: 'system-ui, sans-serif', textAlign: 'center', gap: 10 }}>
       <div style={{ fontSize: 52 }}>🎉</div>
       <div style={{ fontSize: 20, fontWeight: 600, color: '#111' }}>Request sent!</div>
-      <div style={{ fontSize: 14, color: '#888', lineHeight: 1.6 }}>@{item.profiles.username} will be notified. You'll hear back soon — no awkward follow-ups needed.</div>
-      <div style={{ fontSize: 14, fontWeight: 500, color: '#1D9E75', marginTop: 4 }}>🤝 {item.favor_cost} favors will be deducted at pickup</div>
+      <div style={{ fontSize: 14, color: '#888', lineHeight: 1.6 }}>@{item.profiles.username} will be notified. No awkward follow-ups needed — IoU handles it.</div>
+      <div style={{ fontSize: 14, fontWeight: 500, color: '#1D9E75', marginTop: 4 }}>🤝 {item.favor_cost} favors deducted at pickup</div>
       <button onClick={() => router.push('/')} style={{ marginTop: 20, padding: '12px 28px', background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Back to browse</button>
     </div>
   )
@@ -109,6 +110,8 @@ export default function ItemDetail() {
     Trusted: '#1D9E75',
     Pillar: '#085041',
   }
+
+  const isRental = item.listing_type === 'rent'
 
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', minHeight: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
@@ -126,7 +129,14 @@ export default function ItemDetail() {
           <div style={{ fontSize: 64 }}>{item.emoji}</div>
           <div style={{ fontSize: 20, fontWeight: 600, color: '#111' }}>{item.name}</div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 10, background: '#FAEEDA', color: '#633806' }}>🤝 {item.favor_cost} favors</span>
+            {isRental ? (
+              <>
+                {item.daily_rate && <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 10, background: '#111', color: '#fff' }}>💵 ${item.daily_rate}/day</span>}
+                {item.hourly_rate && <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 10, background: '#333', color: '#fff' }}>⏱ ${item.hourly_rate}/hr</span>}
+              </>
+            ) : (
+              <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 10, background: '#FAEEDA', color: '#633806' }}>🤝 {item.favor_cost} favors</span>
+            )}
             <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 10, background: '#e5e5e5', color: '#666' }}>{item.category}</span>
           </div>
         </div>
@@ -168,18 +178,57 @@ export default function ItemDetail() {
           ))}
         </div>
 
-        {/* Friction-free callout */}
-        <div style={{ margin: '14px 16px 0', padding: '12px 14px', background: '#E1F5EE', borderRadius: 12 }}>
-          <div style={{ fontSize: 13, color: '#085041', lineHeight: 1.6 }}>
-            📸 Photo check-in at pickup and return — no awkward conversations if something goes wrong. IoU handles it.
+        {/* Rental pricing */}
+        {isRental && (
+          <div style={{ margin: '14px 16px 0', background: '#E6F1FB', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#185FA5', marginBottom: 8 }}>Rental pricing</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {item.hourly_rate && (
+                <div style={{ flex: 1, background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#111' }}>${item.hourly_rate}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>per hour</div>
+                </div>
+              )}
+              {item.daily_rate && (
+                <div style={{ flex: 1, background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#111' }}>${item.daily_rate}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>per day</div>
+                </div>
+              )}
+              {item.deposit_amount > 0 && (
+                <div style={{ flex: 1, background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#111' }}>${item.deposit_amount}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>deposit</div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Cost box */}
-        <div style={{ margin: '14px 16px 0', padding: '12px 14px', background: '#FAEEDA', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 13, color: '#633806' }}>Cost to borrow</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#412402' }}>🤝 {item.favor_cost} favors</div>
-        </div>
+        {/* Dispute protection */}
+        {isRental && (
+          <div style={{ margin: '14px 16px 0', padding: '12px 14px', background: '#FCEBEB', borderRadius: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D', marginBottom: 4 }}>Rental protection</div>
+            <div style={{ fontSize: 12, color: '#A32D2D', lineHeight: 1.6 }}>Photo check-ins at pickup and return. Deposit covers damage. Disputes reviewed within 24 hours.</div>
+          </div>
+        )}
+
+        {/* Borrow friction-free callout */}
+        {!isRental && (
+          <div style={{ margin: '14px 16px 0', padding: '12px 14px', background: '#E1F5EE', borderRadius: 12 }}>
+            <div style={{ fontSize: 13, color: '#085041', lineHeight: 1.6 }}>
+              📸 Photo check-in at pickup and return — no awkward conversations if something goes wrong.
+            </div>
+          </div>
+        )}
+
+        {/* Cost box for borrow */}
+        {!isRental && (
+          <div style={{ margin: '14px 16px 0', padding: '12px 14px', background: '#FAEEDA', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 13, color: '#633806' }}>Cost to borrow</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#412402' }}>🤝 {item.favor_cost} favors</div>
+          </div>
+        )}
 
         <div style={{ height: 100 }} />
       </div>
@@ -187,13 +236,21 @@ export default function ItemDetail() {
       {/* Bottom CTA */}
       <div style={{ padding: '12px 16px 24px', borderTop: '0.5px solid #e5e5e5', background: '#fff' }}>
         <button
-          onClick={handleRequest}
-          disabled={requesting || !item.is_available}
-          style={{ width: '100%', padding: 14, background: item.is_available ? '#1D9E75' : '#ccc', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 500, cursor: item.is_available ? 'pointer' : 'not-allowed' }}
+          onClick={() => isRental ? router.push(`/rent/${item.id}`) : handleRequest()}
+          disabled={submitting || !item.is_available}
+          style={{ width: '100%', padding: 14, background: !item.is_available ? '#ccc' : isRental ? '#111' : '#1D9E75', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 500, cursor: item.is_available ? 'pointer' : 'not-allowed' }}
         >
-          {!item.is_available ? 'Currently unavailable' : requesting ? 'Sending request…' : `Request to borrow · 🤝 ${item.favor_cost}`}
+          {!item.is_available
+            ? 'Currently unavailable'
+            : submitting
+            ? 'Sending…'
+            : isRental
+            ? `💵 Rent this · from $${item.daily_rate || item.hourly_rate}/day`
+            : `Request to borrow · 🤝 ${item.favor_cost}`}
         </button>
-        <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: '#aaa' }}>Favors deducted at pickup, not now</div>
+        <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: '#aaa' }}>
+          {isRental ? 'Payment collected at pickup — not charged now' : 'Favors deducted at pickup, not now'}
+        </div>
       </div>
     </div>
   )
