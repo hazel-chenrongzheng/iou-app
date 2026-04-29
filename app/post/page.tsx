@@ -78,24 +78,30 @@ export default function PostItem() {
   }, [])
 
   async function searchLocation(query: string) {
-    if (query.length < 3) { setSearchResults([]); return }
-    const res = await fetch(
-  `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query + ' UC Berkeley')}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&proximity=-122.2596,37.8695&bbox=-122.32,37.85,-122.22,37.90&limit=5`
-)
-    const data = await res.json()
-    setSearchResults(data.features || [])
-    setShowResults(true)
-  }
+  if (query.length < 2) { setSearchResults([]); return }
+  const res = await fetch(
+    `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(query)}&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&session_token=iou-session&language=en&limit=5&proximity=-122.2596,37.8695&bbox=-122.32,37.85,-122.22,37.90&poi_category=education,library,landmark,building`
+  )
+  const data = await res.json()
+  setSearchResults(data.suggestions || [])
+  setShowResults(true)
+}
 
-  function selectLocation(feature: any) {
-    const [lng, lat] = feature.center
-    setCoords({ lat, lng })
-    setSearchQuery(feature.place_name)
-    setShowResults(false)
-    setSearchResults([])
-    if (marker.current) marker.current.setLngLat([lng, lat])
-    if (map.current) map.current.flyTo({ center: [lng, lat], zoom: 16 })
-  }
+  async function selectLocation(suggestion: any) {
+  const res = await fetch(
+    `https://api.mapbox.com/search/searchbox/v1/retrieve/${suggestion.mapbox_id}?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&session_token=iou-session`
+  )
+  const data = await res.json()
+  const feature = data.features?.[0]
+  if (!feature) return
+  const [lng, lat] = feature.geometry.coordinates
+  setCoords({ lat, lng })
+  setSearchQuery(suggestion.name + (suggestion.place_formatted ? ', ' + suggestion.place_formatted : ''))
+  setShowResults(false)
+  setSearchResults([])
+  if (marker.current) marker.current.setLngLat([lng, lat])
+  if (map.current) map.current.flyTo({ center: [lng, lat], zoom: 17 })
+}
 
   async function handlePost() {
     if (!name.trim()) { setError('Please add an item name'); return }
@@ -236,15 +242,15 @@ export default function PostItem() {
               style={inputStyle}
             />
             {showResults && searchResults.length > 0 && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '0.5px solid #e5e5e5', borderRadius: 10, zIndex: 100, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                {searchResults.map((r: any) => (
-                  <div key={r.id} onClick={() => selectLocation(r)} style={{ padding: '12px 14px', borderBottom: '0.5px solid #f5f5f5', cursor: 'pointer', fontSize: 13, color: '#111' }}>
-                    <div style={{ fontWeight: 500 }}>{r.text}</div>
-<div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{r.place_name}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '0.5px solid #e5e5e5', borderRadius: 10, zIndex: 100, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+    {searchResults.map((r: any) => (
+      <div key={r.mapbox_id} onClick={() => selectLocation(r)} style={{ padding: '12px 14px', borderBottom: '0.5px solid #f5f5f5', cursor: 'pointer', fontSize: 13, color: '#111' }}>
+        <div style={{ fontWeight: 500 }}>{r.name}</div>
+        <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{r.place_formatted}</div>
+      </div>
+    ))}
+  </div>
+)}
           </div>
           <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Or drag the pin / tap anywhere on the map</div>
           <div ref={mapContainer} style={{ width: '100%', height: 220, borderRadius: 12, overflow: 'hidden', border: '0.5px solid #e5e5e5' }} />
