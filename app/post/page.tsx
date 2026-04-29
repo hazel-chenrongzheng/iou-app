@@ -80,8 +80,8 @@ export default function PostItem() {
   async function searchLocation(query: string) {
     if (query.length < 3) { setSearchResults([]); return }
     const res = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query + ' Berkeley California')}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&proximity=-122.2596,37.8695&bbox=-122.3,37.85,-122.2,37.89&limit=5`
-    )
+  `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query + ' UC Berkeley')}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&proximity=-122.2596,37.8695&bbox=-122.32,37.85,-122.22,37.90&limit=5`
+)
     const data = await res.json()
     setSearchResults(data.features || [])
     setShowResults(true)
@@ -240,7 +240,7 @@ export default function PostItem() {
                 {searchResults.map((r: any) => (
                   <div key={r.id} onClick={() => selectLocation(r)} style={{ padding: '12px 14px', borderBottom: '0.5px solid #f5f5f5', cursor: 'pointer', fontSize: 13, color: '#111' }}>
                     <div style={{ fontWeight: 500 }}>{r.text}</div>
-                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{r.place_name}</div>
+<div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{r.place_name}</div>
                   </div>
                 ))}
               </div>
