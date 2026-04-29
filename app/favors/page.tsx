@@ -75,7 +75,7 @@ export default function FavorsPage() {
   }, [])
 
   if (loading) return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ fontSize: 14, color: '#888' }}>Loading…</div>
     </div>
   )
@@ -92,7 +92,7 @@ export default function FavorsPage() {
     .reduce((sum, e) => sum + (e.favor_cost || 0), 0)
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
 
       {/* Header */}
       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '0.5px solid #e5e5e5' }}>

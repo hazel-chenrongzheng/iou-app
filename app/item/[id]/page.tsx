@@ -84,19 +84,19 @@ export default function ItemDetail() {
   }
 
   if (loading) return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ fontSize: 14, color: '#888' }}>Loading…</div>
     </div>
   )
 
   if (!item) return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ fontSize: 14, color: '#888' }}>Item not found</div>
     </div>
   )
 
   if (success) return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', fontFamily: 'system-ui, sans-serif', textAlign: 'center', gap: 10 }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', fontFamily: 'system-ui, sans-serif', textAlign: 'center', gap: 10 }}>
       <div style={{ fontSize: 52 }}>🎉</div>
       <div style={{ fontSize: 20, fontWeight: 600, color: '#111' }}>Request sent!</div>
       <div style={{ fontSize: 14, color: '#888', lineHeight: 1.6 }}>@{item.profiles.username} will be notified. No awkward follow-ups needed — IoU handles it.</div>
@@ -114,7 +114,7 @@ export default function ItemDetail() {
   const isRental = item.listing_type === 'rent'
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', minHeight: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', minHeight: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
 
       {/* Header */}
       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '0.5px solid #e5e5e5', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>

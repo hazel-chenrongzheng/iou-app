@@ -80,7 +80,7 @@ export default function PostItem() {
   async function searchLocation(query: string) {
     if (query.length < 3) { setSearchResults([]); return }
     const res = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&proximity=-122.2596,37.8695&limit=5`
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query + ' Berkeley California')}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&proximity=-122.2596,37.8695&bbox=-122.3,37.85,-122.2,37.89&limit=5`
     )
     const data = await res.json()
     setSearchResults(data.features || [])
@@ -129,7 +129,7 @@ export default function PostItem() {
   const inputStyle = { width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 16, color: '#111', outline: 'none', WebkitAppearance: 'none' as const }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', minHeight: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '0.5px solid #e5e5e5', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
         <button onClick={() => router.push('/')} style={{ width: 36, height: 36, borderRadius: '50%', border: '0.5px solid #e5e5e5', background: 'transparent', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</button>
         <div style={{ fontSize: 17, fontWeight: 500, color: '#111' }}>List something</div>

@@ -66,13 +66,13 @@ export default function ISOPage() {
     : requests.filter(r => r.category === activeCategory)
 
   if (loading) return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ fontSize: 14, color: '#888' }}>Loading…</div>
     </div>
   )
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff', position: 'relative' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff', position: 'relative' }}>
 
       <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '0.5px solid #e5e5e5' }}>
         <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: -1 }}>io<span style={{ color: '#1D9E75' }}>U</span></div>

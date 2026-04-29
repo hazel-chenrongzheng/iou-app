@@ -126,7 +126,7 @@ export default function ChatPage() {
   }
 
   if (loading) return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ fontSize: 14, color: '#888' }}>Loading…</div>
     </div>
   )
@@ -140,7 +140,7 @@ export default function ChatPage() {
   const needsRating = exchange.status === 'returned' && ((isLender && !exchange.rated_by_lender) || (isBorrower && !exchange.rated_by_borrower))
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e5e5e5', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
@@ -203,7 +203,7 @@ export default function ChatPage() {
           )
           return (
             <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-              <div style={{ maxWidth: '75%', padding: '8px 12px', borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: isMe ? '#1D9E75' : '#f5f5f5', color: isMe ? '#fff' : '#111' }}>
+              <div style={{ maxWidth: '100%', padding: '8px 12px', borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: isMe ? '#1D9E75' : '#f5f5f5', color: isMe ? '#fff' : '#111' }}>
                 <div style={{ fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
                 <div style={{ fontSize: 10, marginTop: 3, opacity: 0.7 }}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
               </div>
