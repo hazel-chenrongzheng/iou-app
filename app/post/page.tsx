@@ -55,7 +55,7 @@ export default function PostItem() {
     if (!mapContainer.current || map.current) return
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: [coords.lng, coords.lat],
       zoom: 15,
     })
