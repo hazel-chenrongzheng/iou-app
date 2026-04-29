@@ -1,7 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../supabase'
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
+
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 
 const CATEGORIES = ['Tools', 'Kitchen', 'Books', 'Outdoors', 'Tech', 'Games', 'Other']
 const EMOJIS = ['🔧', '🍳', '📚', '🏕️', '🎮', '🎾', '💻', '🪴', '🎸', '🧲', '🪑', '🧹']
@@ -9,6 +13,9 @@ const CONDITIONS = ['Like new', 'Excellent', 'Good', 'Fair']
 
 export default function PostItem() {
   const router = useRouter()
+  const mapContainer = useRef<HTMLDivElement>(null)
+  const map = useRef<mapboxgl.Map | null>(null)
+  const marker = useRef<mapboxgl.Marker | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('Tools')
@@ -19,38 +26,56 @@ export default function PostItem() {
   const [pickupNotes, setPickupNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [locating, setLocating] = useState(false)
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 37.8695, lng: -122.2596 })
   const [listingType, setListingType] = useState<'borrow' | 'rent'>('borrow')
   const [hourlyRate, setHourlyRate] = useState('')
   const [dailyRate, setDailyRate] = useState('')
   const [depositAmount, setDepositAmount] = useState('')
+  const [mapReady, setMapReady] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) router.push('/auth')
     })
-    getLocation()
+    navigator.geolocation.getCurrentPosition(
+      pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    )
   }, [])
 
-  function getLocation() {
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      pos => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false) },
-      () => { setCoords({ lat: 37.8695, lng: -122.2596 }); setLocating(false) }
-    )
-  }
+  useEffect(() => {
+    if (!mapContainer.current || map.current) return
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: [coords.lng, coords.lat],
+      zoom: 15,
+    })
+    map.current.on('load', () => {
+      const el = document.createElement('div')
+      el.innerHTML = `<div style="background:white;border:2.5px solid #1D9E75;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:grab;box-shadow:0 2px 8px rgba(0,0,0,0.2);">📍</div>`
+      marker.current = new mapboxgl.Marker({ element: el, draggable: true, anchor: 'center' })
+        .setLngLat([coords.lng, coords.lat])
+        .addTo(map.current!)
+      marker.current.on('dragend', () => {
+        const lngLat = marker.current!.getLngLat()
+        setCoords({ lat: lngLat.lat, lng: lngLat.lng })
+      })
+      map.current!.on('click', (e) => {
+        marker.current!.setLngLat(e.lngLat)
+        setCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+      })
+      setMapReady(true)
+    })
+  }, [])
 
   async function handlePost() {
     if (!name.trim()) { setError('Please add an item name'); return }
-    if (!coords) { setError('Getting your location…'); return }
     if (listingType === 'rent' && !dailyRate && !hourlyRate) { setError('Please set a rental rate'); return }
     setLoading(true)
     setError('')
-
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/auth'); return }
-
     const { error: insertError } = await supabase.from('items').insert({
       owner_id: session.user.id,
       name: name.trim(),
@@ -69,14 +94,12 @@ export default function PostItem() {
       daily_rate: dailyRate ? parseFloat(dailyRate) : null,
       deposit_amount: depositAmount ? parseFloat(depositAmount) : 0,
     })
-
     if (insertError) { setError(insertError.message); setLoading(false); return }
     router.push('/')
   }
 
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', minHeight: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
-
       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '0.5px solid #e5e5e5', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
         <button onClick={() => router.push('/')} style={{ width: 32, height: 32, borderRadius: '50%', border: '0.5px solid #e5e5e5', background: 'transparent', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
         <div style={{ fontSize: 16, fontWeight: 500, color: '#111' }}>List something</div>
@@ -84,7 +107,6 @@ export default function PostItem() {
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* Listing type toggle */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Listing type</div>
           <div style={{ display: 'flex', border: '0.5px solid #e5e5e5', borderRadius: 12, overflow: 'hidden', background: '#f5f5f5' }}>
@@ -94,18 +116,13 @@ export default function PostItem() {
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 6, padding: '0 4px' }}>
-            {listingType === 'borrow' ? 'Neighbors borrow for free using favors — builds trust and community.' : 'Charge a daily or hourly rate. Great for high-value items.'}
-          </div>
         </div>
 
-        {/* Item name */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 6 }}>What are you listing? *</div>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Power drill, camping tent, camera…" style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none' }} />
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Power drill, camping tent…" style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none' }} />
         </div>
 
-        {/* Emoji */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Pick an icon</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -115,7 +132,6 @@ export default function PostItem() {
           </div>
         </div>
 
-        {/* Category */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Category</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
@@ -125,13 +141,11 @@ export default function PostItem() {
           </div>
         </div>
 
-        {/* Description */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 6 }}>Description</div>
-          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Condition, what's included, any notes…" rows={3} style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none', resize: 'none' }} />
+          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Condition, what's included…" rows={3} style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none', resize: 'none' }} />
         </div>
 
-        {/* Condition */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Condition</div>
           <div style={{ display: 'flex', gap: 7 }}>
@@ -141,27 +155,19 @@ export default function PostItem() {
           </div>
         </div>
 
-        {/* Borrow-specific fields */}
         {listingType === 'borrow' && (
           <>
             <div>
               <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Favor cost — <span style={{ color: '#1D9E75' }}>🤝 {favorCost}</span></div>
-              <input type="range" min={1} max={5} step={1} value={favorCost} onChange={e => setFavorCost(Number(e.target.value))} style={{ width: '100%' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#aaa', marginTop: 4 }}>
-                <span>1 (small item)</span><span>5 (high value)</span>
-              </div>
+              <input type="range" min={1} max={5} value={favorCost} onChange={e => setFavorCost(Number(e.target.value))} style={{ width: '100%' }} />
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Max borrow duration — <span style={{ color: '#1D9E75' }}>{maxDays} {maxDays === 1 ? 'day' : 'days'}</span></div>
-              <input type="range" min={1} max={14} step={1} value={maxDays} onChange={e => setMaxDays(Number(e.target.value))} style={{ width: '100%' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#aaa', marginTop: 4 }}>
-                <span>1 day</span><span>2 weeks</span>
-              </div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Max duration — <span style={{ color: '#1D9E75' }}>{maxDays} days</span></div>
+              <input type="range" min={1} max={14} value={maxDays} onChange={e => setMaxDays(Number(e.target.value))} style={{ width: '100%' }} />
             </div>
           </>
         )}
 
-        {/* Rental-specific fields */}
         {listingType === 'rent' && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -175,40 +181,37 @@ export default function PostItem() {
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 6 }}>Security deposit ($) <span style={{ fontWeight: 400 }}>— optional</span></div>
-              <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="e.g. 50.00 — held until item returned" style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none' }} />
-              <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Deposit is held and returned automatically when the item comes back in good condition.</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 6 }}>Security deposit ($)</div>
+              <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="e.g. 50.00" style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none' }} />
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Max rental duration — <span style={{ color: '#1D9E75' }}>{maxDays} {maxDays === 1 ? 'day' : 'days'}</span></div>
-              <input type="range" min={1} max={14} step={1} value={maxDays} onChange={e => setMaxDays(Number(e.target.value))} style={{ width: '100%' }} />
-            </div>
-            <div style={{ padding: '12px 14px', background: '#FCEBEB', borderRadius: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D', marginBottom: 4 }}>Dispute protection</div>
-              <div style={{ fontSize: 12, color: '#A32D2D', lineHeight: 1.6 }}>If an item is returned damaged or not returned, you can file a dispute. IoU will review photo check-ins from pickup and return to resolve the case.</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>Max duration — <span style={{ color: '#1D9E75' }}>{maxDays} days</span></div>
+              <input type="range" min={1} max={14} value={maxDays} onChange={e => setMaxDays(Number(e.target.value))} style={{ width: '100%' }} />
             </div>
           </>
         )}
 
-        {/* Pickup notes */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 6 }}>Pickup instructions</div>
-          <input value={pickupNotes} onChange={e => setPickupNotes(e.target.value)} placeholder="e.g. Porch pickup, text me first…" style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none' }} />
+          <input value={pickupNotes} onChange={e => setPickupNotes(e.target.value)} placeholder="e.g. Front door, text me first…" style={{ width: '100%', padding: '11px 14px', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 14, color: '#111', outline: 'none' }} />
         </div>
 
-        {/* Location */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: coords ? '#E1F5EE' : '#f5f5f5', borderRadius: 10 }}>
-          <span style={{ fontSize: 16 }}>{coords ? '📍' : '⏳'}</span>
-          <span style={{ fontSize: 13, color: coords ? '#085041' : '#888' }}>
-            {locating ? 'Getting your location…' : coords ? 'Location captured — pin will appear on map' : 'Could not get location'}
-          </span>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: '#888', marginBottom: 8 }}>📍 Set pickup location</div>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Drag the pin or tap anywhere on the map to set the exact pickup spot.</div>
+          <div ref={mapContainer} style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', border: '0.5px solid #e5e5e5' }} />
+          {mapReady && (
+            <div style={{ fontSize: 11, color: '#1D9E75', marginTop: 6 }}>
+              📍 Pin set at {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+            </div>
+          )}
         </div>
 
         {error && <div style={{ padding: '10px 14px', background: '#FCEBEB', borderRadius: 10, fontSize: 13, color: '#A32D2D' }}>{error}</div>}
       </div>
 
       <div style={{ padding: '12px 16px 24px', borderTop: '0.5px solid #e5e5e5', background: '#fff' }}>
-        <button onClick={handlePost} disabled={loading || locating} style={{ width: '100%', padding: 14, background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading || locating ? 0.7 : 1 }}>
+        <button onClick={handlePost} disabled={loading} style={{ width: '100%', padding: 14, background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
           {loading ? 'Posting…' : listingType === 'borrow' ? '🤝 Post for borrowing' : '💵 Post for rental'}
         </button>
       </div>

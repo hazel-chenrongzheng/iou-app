@@ -43,6 +43,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'borrowing' | 'lending'>('borrowing')
   const [userId, setUserId] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -151,6 +152,9 @@ export default function ActivityPage() {
                   )}
 
                   {/* Lender actions */}
+                  <button onClick={() => router.push(`/chat/${ex.id}`)} style={{ width: '100%', padding: '8px', background: '#f5f5f5', color: '#111', border: '0.5px solid #e5e5e5', borderRadius: 10, fontSize: 12, cursor: 'pointer', marginBottom: 6 }}>
+  💬 Open chat
+</button>
                   {tab === 'lending' && ex.status === 'requested' && (
                     <button onClick={() => handleAccept(ex.id, ex.items?.id)} style={{ width: '100%', padding: '10px', background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                       Accept request
