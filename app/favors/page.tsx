@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../supabase'
-#just a test
 type Exchange = {
   id: string
   status: string
