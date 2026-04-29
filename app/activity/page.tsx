@@ -43,7 +43,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'borrowing' | 'lending'>('borrowing')
   const [userId, setUserId] = useState<string | null>(null)
-  const router = useRouter()
+
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
