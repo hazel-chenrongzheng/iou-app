@@ -133,7 +133,7 @@ export default function PostItem() {
       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '0.5px solid #e5e5e5', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
         <button onClick={() => router.push('/')} style={{ width: 36, height: 36, borderRadius: '50%', border: '0.5px solid #e5e5e5', background: 'transparent', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</button>
         <div style={{ fontSize: 17, fontWeight: 500, color: '#111' }}>List something</div>
-      </div>
+      </div>style: 'mapbox://styles/mapbox/streets-v12',
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 

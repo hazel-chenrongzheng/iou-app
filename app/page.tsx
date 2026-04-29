@@ -62,7 +62,7 @@ export default function Home() {
     if (map.current || !mapContainer.current) return
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: [-122.2596, 37.8695],
       zoom: 14.5,
     })
