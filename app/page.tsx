@@ -35,6 +35,7 @@ export default function Home() {
   const [selectedItem, setSelectedItem] = useState<typeof SAMPLE_ITEMS[0] | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [dbItems, setDbItems] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const allItems = dbItems.length > 0 ? dbItems : SAMPLE_ITEMS
   const filteredItems = activeCategory === 'All'
@@ -44,17 +45,38 @@ export default function Home() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/auth'); return }
+
       const { data: profileData } = await supabase
         .from('profiles')
         .select('username, favor_balance, trust_tier, avg_rating')
         .eq('id', session.user.id)
         .single()
       if (profileData) setProfile(profileData)
+
       const { data: itemsData } = await supabase
         .from('items')
         .select('*, profiles(username, avg_rating, trust_tier)')
         .eq('is_available', true)
       if (itemsData && itemsData.length > 0) setDbItems(itemsData)
+
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('is_read', false)
+      setUnreadCount(count || 0)
+
+      const notifChannel = supabase
+        .channel('notifications-count')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${session.user.id}`
+        }, () => {
+          setUnreadCount(prev => prev + 1)
+        })
+        .subscribe()
     })
   }, [])
 
@@ -104,11 +126,20 @@ export default function Home() {
   return (
     <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff', position: 'relative' }}>
 
+      {/* Header */}
       <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '0.5px solid #e5e5e5' }}>
         <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: -1 }}>io<span style={{ color: '#1D9E75' }}>U</span></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ background: '#FAEEDA', borderRadius: 20, padding: '4px 10px', fontSize: 13, fontWeight: 500, color: '#633806' }}>
             🤝 {profile ? profile.favor_balance : '…'} favors
+          </div>
+          <div onClick={() => router.push('/notifications')} style={{ position: 'relative', width: 32, height: 32, borderRadius: '50%', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16 }}>
+            🔔
+            {unreadCount > 0 && (
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 16, height: 16, borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: 9, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {unreadCount}
+              </div>
+            )}
           </div>
           <div onClick={handleSignOut} title="Sign out" style={{ width: 32, height: 32, borderRadius: '50%', background: '#9FE1CB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#085041', cursor: 'pointer' }}>
             {initials}
@@ -116,6 +147,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* View toggle */}
       <div style={{ display: 'flex', margin: '10px 16px 0', border: '0.5px solid #e5e5e5', borderRadius: 12, overflow: 'hidden', background: '#f5f5f5' }}>
         {(['map', 'list'] as const).map(v => (
           <button key={v} onClick={() => setView(v)} style={{ flex: 1, padding: '7px 0', fontSize: 13, border: 'none', background: view === v ? '#fff' : 'transparent', fontWeight: view === v ? 500 : 400, color: view === v ? '#111' : '#888', cursor: 'pointer', borderRadius: view === v ? 10 : 0, margin: view === v ? 2 : 0 }}>
@@ -124,6 +156,7 @@ export default function Home() {
         ))}
       </div>
 
+      {/* Category chips */}
       <div style={{ display: 'flex', gap: 7, padding: '10px 16px 6px', overflowX: 'auto', scrollbarWidth: 'none' }}>
         {CATEGORIES.map(cat => (
           <button key={cat} onClick={() => { setActiveCategory(cat); setSelectedItem(null) }} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, border: `0.5px solid ${activeCategory === cat ? '#5DCAA5' : '#e5e5e5'}`, background: activeCategory === cat ? '#E1F5EE' : '#fff', color: activeCategory === cat ? '#0F6E56' : '#888', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -132,6 +165,7 @@ export default function Home() {
         ))}
       </div>
 
+      {/* Map — always mounted */}
       <div style={{ flex: 1, position: 'relative', display: view === 'map' ? 'block' : 'none' }}>
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
         {selectedItem && (
@@ -150,6 +184,7 @@ export default function Home() {
         )}
       </div>
 
+      {/* List view */}
       {view === 'list' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
           {filteredItems.map(item => (
@@ -169,22 +204,23 @@ export default function Home() {
         </div>
       )}
 
+      {/* FAB */}
       <div onClick={() => router.push('/post')} style={{ position: 'absolute', bottom: 80, right: 16, width: 52, height: 52, borderRadius: '50%', background: '#1D9E75', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.15)', zIndex: 20 }}>+</div>
 
+      {/* Bottom nav */}
       <div style={{ display: 'flex', borderTop: '0.5px solid #e5e5e5', background: '#fff', padding: '8px 0 12px' }}>
-  {[
-  { icon: '⌂', label: 'Browse', path: '/' },
-  { icon: '📍', label: 'ISO', path: '/iso' },
-  { icon: '↕', label: 'Activity', path: '/activity' },
-  { icon: '◉', label: 'Profile', path: '/profile' },
-].map(({ icon, label, path }) => (
-  <div key={label} onClick={() => router.push(path)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-    <div style={{ fontSize: 18 }}>{icon}</div>
-    <div style={{ fontSize: 10, color: label === 'Browse' ? '#1D9E75' : '#aaa', fontWeight: label === 'Browse' ? 500 : 400 }}>{label}</div>
-  </div>
-))}
-</div>
-
+        {[
+          { icon: '⌂', label: 'Browse', path: '/' },
+          { icon: '📍', label: 'ISO', path: '/iso' },
+          { icon: '↕', label: 'Activity', path: '/activity' },
+          { icon: '◉', label: 'Profile', path: '/profile' },
+        ].map(({ icon, label, path }) => (
+          <div key={label} onClick={() => router.push(path)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+            <div style={{ fontSize: 18 }}>{icon}</div>
+            <div style={{ fontSize: 10, color: label === 'Browse' ? '#1D9E75' : '#aaa', fontWeight: label === 'Browse' ? 500 : 400 }}>{label}</div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

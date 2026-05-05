@@ -37,27 +37,60 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
+  const [username, setUsername] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [pickupLocation, setPickupLocation] = useState('')
   const [showPickupInput, setShowPickupInput] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const exchangeRef = useRef<Exchange | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/auth'); return }
       setUserId(session.user.id)
-      await loadExchange(session.user.id)
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', session.user.id)
+        .single()
+      if (profile) setUsername(profile.username)
+
+      await loadExchange()
       await loadMessages()
     })
 
     const channel = supabase
       .channel(`chat-${params.id}`)
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
         filter: `exchange_id=eq.${params.id}`
-      }, payload => {
-        loadMessages()
+      }, async (payload) => {
+        const newMsg = payload.new as any
+        const { data: senderProfile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', newMsg.sender_id)
+          .single()
+        const msgWithProfile = {
+          ...newMsg,
+          profiles: { username: senderProfile?.username || 'unknown' }
+        }
+        setMessages(prev => {
+          if (prev.find(m => m.id === newMsg.id)) return prev
+          return [...prev, msgWithProfile]
+        })
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'exchanges',
+        filter: `id=eq.${params.id}`
+      }, (payload) => {
+        setExchange(prev => prev ? { ...prev, ...payload.new } : null)
       })
       .subscribe()
 
@@ -65,10 +98,14 @@ export default function ChatPage() {
   }, [])
 
   useEffect(() => {
+    exchangeRef.current = exchange
+  }, [exchange])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  async function loadExchange(uid: string) {
+  async function loadExchange() {
     const { data } = await supabase
       .from('exchanges')
       .select(`*, items(name, emoji), borrower:profiles!exchanges_borrower_id_fkey(username), lender:profiles!exchanges_lender_id_fkey(username)`)
@@ -91,38 +128,79 @@ export default function ChatPage() {
   }
 
   async function sendMessage() {
-    if (!newMessage.trim() || !userId) return
+    if (!newMessage.trim() || !userId || !exchange) return
     setSending(true)
-    await supabase.from('messages').insert({
+    const content = newMessage.trim()
+    setNewMessage('')
+
+    const tempId = `temp-${Date.now()}`
+    const optimisticMsg: Message = {
+      id: tempId,
+      content,
+      sender_id: userId,
+      created_at: new Date().toISOString(),
+      profiles: { username }
+    }
+    setMessages(prev => [...prev, optimisticMsg])
+
+    const { data: inserted } = await supabase.from('messages').insert({
       exchange_id: params.id,
       sender_id: userId,
-      content: newMessage.trim(),
+      content,
+    }).select('*, profiles(username)').single()
+
+    if (inserted) {
+      setMessages(prev => prev.map(m => m.id === tempId ? inserted : m))
+    }
+
+    const otherUserId = userId === exchange.borrower_id ? exchange.lender_id : exchange.borrower_id
+    await supabase.from('notifications').insert({
+      user_id: otherUserId,
+      type: 'message',
+      title: `New message from @${username}`,
+      body: content.slice(0, 80),
+      exchange_id: params.id,
     })
-    setNewMessage('')
+
     setSending(false)
   }
 
   async function updateStatus(newStatus: string) {
+    if (!exchange || !userId) return
     await supabase.from('exchanges').update({ status: newStatus }).eq('id', params.id)
     setExchange(prev => prev ? { ...prev, status: newStatus } : null)
-    await supabase.from('messages').insert({
+
+    const systemContent = `📦 Status updated to: ${newStatus.replace('_', ' ')}`
+    const { data: inserted } = await supabase.from('messages').insert({
       exchange_id: params.id,
       sender_id: userId,
-      content: `📦 Status updated to: ${newStatus.replace('_', ' ')}`,
+      content: systemContent,
+    }).select('*, profiles(username)').single()
+    if (inserted) setMessages(prev => [...prev, inserted])
+
+    const otherUserId = userId === exchange.borrower_id ? exchange.lender_id : exchange.borrower_id
+    await supabase.from('notifications').insert({
+      user_id: otherUserId,
+      type: 'status',
+      title: `Exchange status: ${newStatus.replace('_', ' ')}`,
+      body: `${exchange.items?.name} is now ${newStatus.replace('_', ' ')}`,
+      exchange_id: params.id,
     })
-    await loadMessages()
   }
 
   async function savePickupLocation() {
+    if (!exchange || !userId) return
     await supabase.from('exchanges').update({ pickup_location: pickupLocation }).eq('id', params.id)
     setExchange(prev => prev ? { ...prev, pickup_location: pickupLocation } : null)
     setShowPickupInput(false)
-    await supabase.from('messages').insert({
+
+    const systemContent = `📍 Pickup location set: ${pickupLocation}`
+    const { data: inserted } = await supabase.from('messages').insert({
       exchange_id: params.id,
       sender_id: userId,
-      content: `📍 Pickup location set: ${pickupLocation}`,
-    })
-    await loadMessages()
+      content: systemContent,
+    }).select('*, profiles(username)').single()
+    if (inserted) setMessages(prev => [...prev, inserted])
   }
 
   if (loading) return (
@@ -142,7 +220,6 @@ export default function ChatPage() {
   return (
     <div style={{ maxWidth: '100%', margin: '0 auto', height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
 
-      {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e5e5e5', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => router.back()} style={{ width: 30, height: 30, borderRadius: '50%', border: '0.5px solid #e5e5e5', background: 'transparent', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
@@ -154,7 +231,6 @@ export default function ChatPage() {
           <div style={{ fontSize: 11, padding: '3px 8px', borderRadius: 10, background: '#E1F5EE', color: '#085041' }}>{exchange.status.replace('_', ' ')}</div>
         </div>
 
-        {/* Progress bar */}
         <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
           {STATUS_STEPS.map((step, i) => (
             <div key={step} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= currentStepIndex ? '#1D9E75' : '#e5e5e5', transition: 'background 0.3s' }} />
@@ -167,7 +243,6 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Pickup location banner */}
       {exchange.pickup_location && (
         <div style={{ padding: '8px 16px', background: '#E1F5EE', borderBottom: '0.5px solid #5DCAA5', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14 }}>📍</span>
@@ -179,7 +254,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Rating prompt */}
       {needsRating && (
         <div style={{ padding: '10px 16px', background: '#FAEEDA', borderBottom: '0.5px solid #FAC775', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 16 }}>⭐</span>
@@ -188,7 +262,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '32px 0', color: '#aaa', fontSize: 13 }}>
@@ -203,7 +276,7 @@ export default function ChatPage() {
           )
           return (
             <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-              <div style={{ maxWidth: '100%', padding: '8px 12px', borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: isMe ? '#1D9E75' : '#f5f5f5', color: isMe ? '#fff' : '#111' }}>
+              <div style={{ maxWidth: '75%', padding: '8px 12px', borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: isMe ? '#1D9E75' : '#f5f5f5', color: isMe ? '#fff' : '#111' }}>
                 <div style={{ fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
                 <div style={{ fontSize: 10, marginTop: 3, opacity: 0.7 }}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
               </div>
@@ -213,10 +286,7 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Action buttons */}
       <div style={{ padding: '8px 16px', borderTop: '0.5px solid #e5e5e5', display: 'flex', flexDirection: 'column', gap: 6 }}>
-
-        {/* Set pickup location */}
         {!exchange.pickup_location && !showPickupInput && exchange.status === 'accepted' && (
           <button onClick={() => setShowPickupInput(true)} style={{ width: '100%', padding: '8px', background: '#E1F5EE', color: '#085041', border: '0.5px solid #5DCAA5', borderRadius: 10, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>
             📍 Set pickup location
@@ -230,7 +300,6 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Status action buttons */}
         {isLender && exchange.status === 'requested' && (
           <button onClick={() => updateStatus('accepted')} style={{ width: '100%', padding: 10, background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
             ✓ Accept borrow request
@@ -248,7 +317,6 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Message input */}
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             value={newMessage}
